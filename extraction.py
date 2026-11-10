@@ -85,6 +85,8 @@ class Extraction:
 
         hourly_marine_indicator_dataframe = pd.DataFrame(data=hourly_data)
 
+        hourly_marine_indicator_dataframe = hourly_marine_indicator_dataframe.fillna(0)
+
         return response, hourly_marine_indicator_dataframe
 
 class WindExtraction(Extraction):

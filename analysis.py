@@ -9,7 +9,6 @@ import pandas as pd
 from indicators import Tide, Wind, Swell
 
 
-
 class ScoreVisitor(ABC):
     """
     Classe définissant le visiteur pour le calcul du score d'un spot.
@@ -26,11 +25,13 @@ class ScoreVisitor(ABC):
         score: valeur du score calculé (défaut pd.NA).
 
     """
-    def __init__(self,df_spot:pd.DataFrame)->None:
-        self.df_spot:pd.DataFrame = df_spot
+
+    def __init__(self, df_spot: pd.DataFrame) -> None:
+        self.df_spot: pd.DataFrame = df_spot
         self.score: float = pd.NA
+
     @abstractmethod
-    def visit_tide(self,tide: Tide) -> float:
+    def visit_tide(self, tide: Tide) -> float:
         """
         Méthode abstraite pour évaluer la condition de marée.
 
@@ -38,8 +39,9 @@ class ScoreVisitor(ABC):
         :return: Le score calculé pour la marée.
         """
         pass
+
     @abstractmethod
-    def visit_swell(self,swell: Swell) -> float:
+    def visit_swell(self, swell: Swell) -> float:
         """
         Méthode abstraite pour évaluer la condition de la houle.
 
@@ -47,8 +49,9 @@ class ScoreVisitor(ABC):
         :return: Le score calculé pour la houle.
         """
         pass
+
     @abstractmethod
-    def visit_wind(self,wind: Wind) -> float:
+    def visit_wind(self, wind: Wind) -> float:
         """
         Méthode abstraite pour évaluer la condition du vent.
 
@@ -56,7 +59,8 @@ class ScoreVisitor(ABC):
         :return: Le score calculé pour le vent.
         """
         pass
-    def compute_score(self)-> pd.DataFrame:
+
+    def compute_score(self) -> pd.DataFrame:
         """
         Calcule le score global pour chaque créneau horaire du DataFrame.
 
@@ -69,10 +73,15 @@ class ScoreVisitor(ABC):
         """
         scores = []
         for i, row in self.df_spot.iterrows():
-            score = row['tide'].accept(self) + row['swell'].accept(self) + row['wind'].accept(self)
+            score = (
+                row["tide"].accept(self)
+                + row["swell"].accept(self)
+                + row["wind"].accept(self)
+            )
             scores.append(score)
-        self.df_spot['score'] = scores #Mutation en place du df_spot initial
+        self.df_spot["score"] = scores  # Mutation en place du df_spot initial
         return self.df_spot
+
 
 class PenfoulScoreVisitor(ScoreVisitor):
     """
@@ -81,7 +90,8 @@ class PenfoulScoreVisitor(ScoreVisitor):
     Applique des règles de notation personnalisées en fonction des conditions
     idéales de ce spot (mi-marée, vent offshore idéalement autour de 135°, etc..).
     """
-    def visit_tide(self,tide: Tide) -> float:
+
+    def visit_tide(self, tide: Tide) -> float:
         """
         Évalue les conditions de marée pour Penfoul.
         Le spot fonctionne idéalement à mi-marée.
@@ -89,11 +99,12 @@ class PenfoulScoreVisitor(ScoreVisitor):
         :param tide: L'objet Tide à analyser.
         :return: 1.0 si l'état précis est 'mid-tide', 0.0 sinon.
         """
-        if tide.tide_state_precision == 'mid-tide':
+        if tide.tide_state_precision == "mid-tide":
             return 1
         else:
             return 0
-    def visit_swell(self,swell: Swell) -> float:
+
+    def visit_swell(self, swell: Swell) -> float:
         """
         Évalue les conditions de houle pour Penfoul.
         Nécessite une période supérieure à 8 secondes et une hauteur comprise
@@ -102,11 +113,12 @@ class PenfoulScoreVisitor(ScoreVisitor):
         :param swell: L'objet Swell à analyser.
         :return: 1.0 si les conditions sont optimales, 0.0 sinon.
         """
-        if swell.swell_wave_peak_period > 8 and (swell.value > 0.8 and swell.value < 2)  :
+        if swell.swell_wave_peak_period > 8 and (swell.value > 0.8 and swell.value < 2):
             return 1
         else:
             return 0
-    def visit_wind(self,wind: Wind) -> float:
+
+    def visit_wind(self, wind: Wind) -> float:
         """
         Évalue les conditions de vent pour Penfoul.
         Le vent offshore parfait est à environ 135 degrés.
@@ -117,9 +129,13 @@ class PenfoulScoreVisitor(ScoreVisitor):
                  0.0 sinon.
 
         """
-        if wind.value < 20 and (75 < wind.wind_direction_10m < 195): #Vent offshore parfait 135 deg à Penfoul
+        if wind.value < 20 and (
+            75 < wind.wind_direction_10m < 195
+        ):  # Vent offshore parfait 135 deg à Penfoul
             return 1
-        elif 20 < wind.value < 35 and (195 < wind.wind_direction_10m < 255 or 15 < wind.wind_direction_10m < 75) :
+        elif 20 < wind.value < 35 and (
+            195 < wind.wind_direction_10m < 255 or 15 < wind.wind_direction_10m < 75
+        ):
             return 0.5
         else:
             return 0
@@ -132,7 +148,8 @@ class PetitMinouScoreVisitor(ScoreVisitor):
     Applique des règles de notation personnalisées en fonction des conditions
     idéales de ce spot (peak à marée basse, vent offshore idéalement autour de 45°, etc.).
     """
-    def visit_tide(self, tide: Tide)->float:
+
+    def visit_tide(self, tide: Tide) -> float:
         # parfait aux peaks marée basse
         """
         Évalue les conditions de marée pour le Petit Minou.
@@ -141,12 +158,12 @@ class PetitMinouScoreVisitor(ScoreVisitor):
         :param tide: L'objet Tide à analyser.
         :return: 1.0 si c'est un peak et que la marée est basse (hauteur < 0), 0.0 sinon.
         """
-        if tide.tide_state_precision == 'peak' and tide.value < 0:
+        if tide.tide_state_precision == "peak" and tide.value < 0:
             return 1
         else:
             return 0
 
-    def visit_swell(self, swell: Swell)-> float:
+    def visit_swell(self, swell: Swell) -> float:
         """
         Évalue les conditions de houle pour le Petit Minou.
         Nécessite une période supérieure à 8 secondes et une hauteur comprise
@@ -160,7 +177,7 @@ class PetitMinouScoreVisitor(ScoreVisitor):
         else:
             return 0
 
-    def visit_wind(self, wind: Wind)-> float:
+    def visit_wind(self, wind: Wind) -> float:
         """
         Évalue les conditions de vent pour le Petit Minou.
         Le vent offshore parfait est à environ 45 degrés.
@@ -173,10 +190,13 @@ class PetitMinouScoreVisitor(ScoreVisitor):
         # Vent offshore parfait 45 deg au Petit Minou
         if wind.value < 20 and (15 < wind.wind_direction_10m < 90):
             return 1
-        elif 20 < wind.value < 35 and ( 0 < wind.wind_direction_10m < 15 or 90 < wind.wind_direction_10m < 105):
+        elif 20 < wind.value < 35 and (
+            0 < wind.wind_direction_10m < 15 or 90 < wind.wind_direction_10m < 105
+        ):
             return 0.5
         else:
             return 0
+
 
 class BestSession:
     """
@@ -187,9 +207,11 @@ class BestSession:
         df_scored: DataFrame initial contenant les scores.
         df_filtered: DataFrame filtré avec les meilleures sessions.
     """
-    def __init__(self, df_scored: pd.DataFrame)-> None :
+
+    def __init__(self, df_scored: pd.DataFrame) -> None:
         self.df_scored: pd.DataFrame = df_scored
         self.df_filtred: pd.DataFrame = df_scored
+
     def filtering(self, score_min: float = 1.5) -> pd.DataFrame:
         """
         Applique un masque booléen pour ne conserver que les sessions
@@ -199,8 +221,11 @@ class BestSession:
         :return: Le DataFrame contenant uniquement les meilleures sessions.
 
         """
-        self.df_filtred = self.df_scored[self.df_scored['score'] >= score_min]#masque booleen
+        self.df_filtred = self.df_scored[
+            self.df_scored["score"] >= score_min
+        ]  # masque booleen
         return self.df_filtred
+
 
 class ForecastAnalyzer:
     """
@@ -217,11 +242,13 @@ class ForecastAnalyzer:
         visitor: Le visiteur instancié pour la notation du spot.
     Note : le df_spot est modifié dynamiquement par mutation en place lors du calcul du score.
     """
-    def __init__(self,df_spot:pd.DataFrame,visitor:ScoreVisitor)-> None :
+
+    def __init__(self, df_spot: pd.DataFrame, visitor: ScoreVisitor) -> None:
         self.df_spot: pd.DataFrame = df_spot
-        self.df_spot_filtered:pd.DataFrame = df_spot
+        self.df_spot_filtered: pd.DataFrame = df_spot
         self.visitor: ScoreVisitor = visitor
-    def get_best_session(self)-> pd.DataFrame :
+
+    def get_best_session(self) -> pd.DataFrame:
         """
         Calcule les scores de toutes les sessions prévues via le visiteur,
         puis filtre et retourne les meilleures sessions.
@@ -231,4 +258,3 @@ class ForecastAnalyzer:
         score = self.visitor.compute_score()
         best_session = BestSession(score).filtering()
         return best_session
-

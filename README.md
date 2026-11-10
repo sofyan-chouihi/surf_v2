@@ -1,5 +1,7 @@
 # Surf Forecast Analyzer
 
+Demo : https://www.youtube.com/watch?v=LJ_qfxctM_Y
+
 A Python-based web application that automates marine weather forecasting and algorithmic session scoring for surf spots in Brittany.
 
 ## Tech Stack
